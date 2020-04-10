@@ -41,8 +41,8 @@ label {
     background-repeat: no-repeat;
     z-index: 30;
 }
-.selected {
-    border: 2px solid turquoise !important;
+.item.selected {
+    box-shadow: 0 0 3px 3px turquoise;
 }
 .summon {
     z-index: 50 !important;

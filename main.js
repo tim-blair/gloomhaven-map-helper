@@ -77,6 +77,11 @@ if(ALIGNMENT === 'horz') {
     monsters.set('wind demon',  'vertWindDemon');
 }
 
+function clearSelection() {
+    selected.classList.remove('selected');
+    selected = null;
+}
+
 function handleClick(e) {
     if (e.button !== 0) {
         return true;
@@ -86,8 +91,7 @@ function handleClick(e) {
     if(selected) {
         // get x,y and move target there
         move(selected.id, e.pageX, e.pageY);
-        selected.classList.remove('selected');
-        selected = null;
+        clearSelection();
         return false;
     }
     if (!target.classList.contains('item') || !target.id) {
@@ -102,11 +106,12 @@ function move(id, x, y) {
     selected.style.top = `${y - selected.clientHeight/2}`;
     selected.style.left = `${x - selected.clientWidth/2}`;
     selected.classList.remove('waiting-area');
-    history.push({
+    recordEvent({
         id,
         type: 'move',
         meta: {x, y}
     });
+    save();
 }
 
 function createWithAlignment(name) {
@@ -125,12 +130,13 @@ function createWithId(id, text, ...classes) {
     }
     item.classList.add('item');
     item.classList.add('waiting-area');
-    history.push({
+    recordEvent({
         id: item.id,
         type: 'create',
         meta: {text, classes: toArray(item.classList)}
     });
     item.textContent = text;
+    initDragDrop(item);
     document.body.appendChild(item);
 }
 
@@ -174,8 +180,23 @@ function monster() {
     create(standee, ...classes);
 }
 
+function recordEvent(evt) {
+    history.push(evt);
+    save();
+}
+
 function save() {
+    const serializedHistory = JSON.stringify(history);
+    localStorage.setItem("history", serializedHistory);
+}
+
+function view() {
     console.log(JSON.stringify(history));
+}
+
+function reset() {
+    localStorage.removeItem('history');
+    location.reload();
 }
 
 function load(events) {
@@ -194,4 +215,38 @@ function load(events) {
         }
     }, 100);
     nextId = maxIdSeen + 1;
+}
+
+function initDragDrop(item) {
+    item.draggable = true;
+    let offsetX = 0;
+    let offsetY = 0;
+    item.ondragstart = evt => {
+        const rect = evt.target.getBoundingClientRect();
+        offsetX = rect.x - evt.clientX;
+        offsetY = rect.y - evt.clientY;
+    }
+
+    item.ondragend = evt => {
+        const rect = item.getBoundingClientRect();
+        move(evt.target.id,
+            evt.clientX + (rect.width / 2) + offsetX - 1,
+            evt.clientY + (rect.height / 2) + offsetY - 1
+        );
+        clearSelection();
+    };
+}
+
+function blessPredefinedItems() {
+    document.querySelectorAll('.item').forEach(item => {
+        initDragDrop(item);
+    });
+}
+
+window.onload = function() {
+    blessPredefinedItems();
+    const history = localStorage.getItem("history");
+    if (history) {
+        load(history);
+    }
 }
