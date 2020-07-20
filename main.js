@@ -1,7 +1,6 @@
 let selected = null;
 let selectTime = 0;
 let history = [];
-const peerConnections = {};
 let nextId = 100;
 
 function setScenario() {
@@ -39,9 +38,9 @@ function handleClick(e) {
         const x = e.pageX - selected.parentElement.offsetLeft;
         const y = e.pageY - selected.parentElement.offsetTop;
         if (shouldBeRemoved(x, y)) {
-            remove('', selected.id);
+            remove(selected.id);
         } else {
-            move('', selected.id, x, y);
+            move(selected.id, x, y);
         }
         clearSelection();
         return false;
@@ -54,27 +53,18 @@ function handleClick(e) {
     selected.classList.add('selected');
 }
 
-function move(source, id, x, y) {
+function move(id, x, y) {
     const selected = document.querySelector(`[id='${id}']`);
     selected.style.top = `${y - selected.clientHeight / 2}`;
     selected.style.left = `${x - selected.clientWidth / 2}`;
     selected.classList.remove('waiting-area');
-    recordEvent(source, {
-        id,
-        type: 'move',
-        meta: {x, y}
-    });
-    save();
+    sendEvent({id, type: 'move', meta: {x, y}});
 }
 
-function remove(source, id) {
+function remove(id) {
     const item = document.querySelector(`[id='${id}']`);
     document.querySelector('.scenario-container').removeChild(item);
-    recordEvent(source, {
-        id,
-        type: 'remove',
-    });
-    save();
+    sendEvent({id, type: 'remove'});
 }
 
 function shouldBeRemoved(x, y) {
@@ -153,25 +143,25 @@ function createWithAlignment(name) {
 }
 
 function create(text, ...classes) {
-    if (!peeringId) {
-        console.log(`Cannot create ${text}: waiting for peeringId`);
+    if (!socketId) {
+        console.log(`Cannot create ${text}: waiting for socket connection`);
         return;
     }
-    createWithId('', `${peeringId}-gh${nextId++}`, text, ...classes);
+    createWithId(`${socketId}-gh${nextId++}`, text, ...classes);
 }
 
-function createWithId(source, id, text, ...classes) {
+function createWithId(id, text, ...classes) {
     const item = document.createElement('div');
     item.id = id;
     addClasses(item, [...classes, 'item', 'waiting-area']);
-    recordEvent(source, {
+    item.textContent = text;
+    initDragDrop(item);
+    document.querySelector('.scenario-container').appendChild(item);
+    sendEvent({
         id: item.id,
         type: 'create',
         meta: {text, classes: toArray(item.classList)}
     });
-    item.textContent = text;
-    initDragDrop(item);
-    document.querySelector('.scenario-container').appendChild(item);
 }
 
 function toArray(classList) {
@@ -246,65 +236,6 @@ function summon() {
     create(type, 'summon');
 }
 
-function recordEvent(source, evt) {
-    history.push(evt);
-    Object.values(peerConnections).forEach(conn => {
-        if (conn.peer !== source) {
-            conn.send({history: [evt]});
-        }
-    });
-    save();
-}
-
-function save() {
-    const serializedHistory = JSON.stringify(history);
-    localStorage.setItem(`history[${scenario.id}]`, serializedHistory);
-}
-
-function view() {
-    console.log(JSON.stringify(history));
-}
-
-function compact() {
-    history = compactedHistory();
-    save();
-}
-
-function compactedHistory() {
-    const trimmed = new Map();
-    for (let evt of history) {
-        switch (evt.type) {
-            case 'create':
-                trimmed.set(evt.id, {create: evt});
-                break;
-            case 'move':
-                const eventToUpdate = trimmed.get(evt.id);
-                eventToUpdate.move = evt;
-                break;
-            case 'remove':
-                trimmed.delete(evt.id);
-                break;
-        }
-    }
-    const compactedHistory = [];
-    trimmed.forEach(value => {
-        compactedHistory.push(value.create);
-        if (value.move) {
-            compactedHistory.push(value.move);
-        }
-    });
-    return compactedHistory;
-}
-
-function reset() {
-    localStorage.removeItem(`history[${scenario.id}]`);
-    removeAll('.scenario-container');
-    removeAll('.scenario-items');
-    removeAll('#monster_type');
-    history = [];
-    setScenario();
-}
-
 function removeAll(selector) {
     const container = document.querySelector(selector);
     while (container.firstChild) {
@@ -314,26 +245,26 @@ function removeAll(selector) {
 
 function loadRaw(events) {
     const parsed = JSON.parse(events);
-    load('', parsed);
+    load(parsed);
 }
 
 let loading = false;
 
-function load(source, events) {
+function load(events) {
     loading = true;
     const createEvents = events.filter(event => event.type === 'create');
     const moveEvents = events.filter(event => event.type === 'move' || 'remove');
     for (let event of createEvents) {
-        createWithId(source, event.id, event.meta.text, ...event.meta.classes);
+        createWithId(event.id, event.meta.text, ...event.meta.classes);
     }
     // Wait for the DOM updates
     setTimeout(() => {
         for (let event of moveEvents) {
             if (event.type === 'move') {
-                move(source, event.id, event.meta.x, event.meta.y);
+                move(event.id, event.meta.x, event.meta.y);
             }
             if (event.type === 'remove') {
-                remove(source, event.id);
+                remove(event.id);
             }
         }
         loading = false;
@@ -349,9 +280,9 @@ function finishDrag(evt) {
     const x = evt.pageX - draggedItem.parentElement.offsetLeft + (rect.width / 2) + dragOffsetX - 1;
     const y = evt.pageY - draggedItem.parentElement.offsetTop + (rect.height / 2) + dragOffsetY - 1;
     if (shouldBeRemoved(x, y)) {
-        remove('', draggedItem.id);
+        remove(draggedItem.id);
     } else {
-        move('', draggedItem.id, x, y);
+        move(draggedItem.id, x, y);
     }
     clearSelection();
 }
@@ -387,71 +318,26 @@ window.onload = function () {
     };
 };
 
-let peer;
-createPeer(requestedId);
-let peeringId;
-let peerRetries = 0;
+let socketId;
 
-function createPeer(id) {
-    if(peerHost) {
-        peer = new Peer(id, {
-            host: peerHost,
-            port: 9000,
-            path: '/gloom'
-        });
-    } else {
-        peer = new Peer(id);
-    }
+const socket = io();
+socket.on('connect', () => {
+    console.log('connected');
+    socketId = socket.id;
+});
 
-    peer.on('open', (id) => {
-        peeringId = id;
-        console.log(`peering id is: ${id}`);
-        const selfId = document.querySelector('#selfId');
-        selfId.textContent = `My ID: ${id}`;
-        if(requestedId && requestedId !== id) {
-            connectToPeer(requestedId);
-        }
-    });
+socket.on('disconnect', () => {
+    alert('Socket disconnected! Please reload');
+});
 
-    // Someone connected to us, push our history to them
-    peer.on('connection', (connection) => {
-        connection.on('open', () => {
-            connection.send({reset: true, history});
-        });
-        if (peerConnections[connection.peer]) {
-            return;
-        }
-        connection.on('data', (data) => load(connection.peer, data.history));
-        peerConnections[connection.peer] = connection;
-    });
-    peer.on('error', (err) => {
-        console.log(`error: ${err}`);
-        if(!peerRetries) {
-            peerRetries++;
-            setTimeout(createPeer, 1000);
-        }
-    });
+socket.on('data', (data) => {
+    load(data.history);
+});
 
-}
-function connect() {
-    const peerId = document.querySelector(`#peer`).value;
-    connectToPeer(peerId);
-}
+function sendEvent(event) {
+    if(loading) return;
 
-function connectToPeer(peerId) {
-    const connection = peer.connect(peerId);
-    if (peerConnections[connection.peer]) {
-        return;
-    }
-    connection.on('open', () => {
-        connection.on('data', (data) => {
-            if (data.reset) {
-                reset();
-            }
-            load(connection.peer, data.history);
-        });
-    });
-    peerConnections[connection.peer] = connection;
+    socket.emit('data', {history: [event]});
 }
 
 window.addEventListener('mousedown', e => {
@@ -459,27 +345,3 @@ window.addEventListener('mousedown', e => {
         e.target.style.display = 'none';
     }
 });
-
-function showImportExportModal() {
-    const modal = document.querySelector('#import-export-modal');
-    modal.style.display = "block";
-    const scenarioState = modal.querySelector('#scenario-state');
-    scenarioState.value = JSON.stringify(compactedHistory());
-}
-
-function importState() {
-    const events = document.querySelector('#scenario-state').value;
-    const errorDiv = document.querySelector('#import-error');
-    try {
-        errorDiv.innerHTML = '';
-        const parsed = JSON.parse(events);
-        reset();
-        load('', parsed);
-    } catch (e) {
-        errorDiv.innerHTML = e.message;
-    }
-}
-
-function resetState() {
-    document.querySelector('#scenario-state').value = '[]';
-}

@@ -1,0 +1,11 @@
+{
+    "name": "gloom-socket-host",
+    "version": "0.0.1",
+    "description": "gloomhaven socket.io event relayer",
+    "dependencies": {
+        "express": "^4.17.1",
+        "finalhandler": "^1.1.2",
+        "serve-static": "^1.14.1",
+        "socket.io": "^2.3.0"
+    }
+}

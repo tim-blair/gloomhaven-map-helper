@@ -3,15 +3,13 @@
         <title>Scenario</title>
         <link href='./monster.css' rel='stylesheet'>
         <link href='./common.css' rel='stylesheet'>
-        <script src="./peer.js" type="text/javascript"></script>
+        <script src="https://cdn.jsdelivr.net/npm/socket.io-client@2/dist/socket.io.js"></script>
         <script src="./monsters.js" type="text/javascript"></script>
         <script src="./scenarios.js" type="text/javascript"></script>
         <script>
             const url = new URL(window.location.href);
             const scenarioNumber = parseInt(url.searchParams.get('n'));
             const scenario = scenarios.get(scenarioNumber);
-            const peerHost = url.searchParams.get('host');
-            const requestedId = url.searchParams.get('id');
         </script>
         <script src="./main.js" type="text/javascript"></script>
     </head>
@@ -64,12 +62,6 @@
                 <input type="button" value="Monster" onclick="monster()" />
             </div>
             <div class="scenario-items"></div>
-        </div>
-        <div class="configBox">
-            <label for="peer">Peer ID:</label>
-            <input type="text" id="peer"/>
-            <input type="button" value="Connect" onclick="connect()" />
-            <span class="labelText" id="selfId"></span>
         </div>
         <div class="scenario-container"></div>
         <div id='import-export-modal' class="modal">
