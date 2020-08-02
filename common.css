@@ -56,6 +56,16 @@ label, .labelText {
     position: relative;
     top: 120px;
 }
+.scenario-container.dynamic {
+    top: 240px;
+}
+.dynamic-scenario-container {
+    display: flex;
+    position: absolute;
+    top: 240px;
+    left: 50px;
+}
+
 .scenario-items {
     display: flex;
     align-items: center;
@@ -70,7 +80,22 @@ label, .labelText {
     transform: scale(0.3);
     transform-origin: top left;
 }
+.map.dynamic {
+    position: relative;
+    transform: unset;
+    transform-origin: unset;
+    margin: 0 30px;
+}
 .available-item-container {
+    display: flex;
+}
+.dynamic .available-item-container {
+    display: none;
+}
+.dynamic-available-item-container {
+    display: none;
+}
+.dynamic .dynamic-available-item-container {
     display: flex;
 }
 .item {

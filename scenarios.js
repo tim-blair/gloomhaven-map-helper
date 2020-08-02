@@ -351,6 +351,12 @@ scenarios.set(44, {
         f: {top: '608px', left: '715px'},
     }
 })
+scenarios.set(55, {
+    id: 55,
+    dynamic: true,
+    roomCards: ['cabin', 'clearing', 'crossroads', 'encampment', 'road', 'trail'],
+    monsterCards: ['cutthroat', 'infected', 'mangy', 'scaled', 'tribal', 'wild'],
+})
 scenarios.set(57, {
     id: 57,
     alignment: 'vert',

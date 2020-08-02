@@ -4,19 +4,43 @@ let lastEventUuid = null;
 let ws = null;
 let loading = false;
 let cursorLastUpdates = {};
+const selectedRoomCards = {};
+const selectedMonsterCards = {};
 
 function setScenario() {
     const scenarioContainer = document.querySelector('.scenario-container');
+    scenarioContainer.appendChild(createTrashCan());
+    if (scenario.dynamic) {
+        addClasses(scenarioContainer, ['dynamic']);
+        addClasses(document.querySelector('.toolBox'), ['dynamic']);
+        const dynamicScenarioContainer = document.querySelector('.dynamic-scenario-container');
+        for (const slotNumber of [1, 2, 3]) {
+            seedRoomCards(slotNumber, scenario.roomCards);
+            seedMonsterCards(slotNumber, scenario.monsterCards);
+            dynamicScenarioContainer.appendChild(createMapSlot(slotNumber));
+        }
+        return;
+    }
+
     const scenarioItemsContainer = document.querySelector('.scenario-items');
     setStyle(scenarioContainer, scenario.style);
-    scenarioContainer.appendChild(createTrashCan());
     Object.keys(scenario.map).forEach(mapName =>
         scenarioContainer.appendChild(createMapTile(mapName, scenario.map[mapName])));
     scenario.start.forEach(start => scenarioContainer.appendChild(createScenarioItem('start', {style: start})));
-    scenario.doors.forEach(door => scenarioContainer.appendChild(createScenarioItem(scenario.doorType, {style: door, extraClasses: ['door']})));
+    scenario.doors.forEach(door => scenarioContainer.appendChild(createScenarioItem(scenario.doorType, {
+        style: door,
+        extraClasses: ['door']
+    })));
     scenario.items.forEach(item => scenarioItemsContainer.appendChild(createScenarioItem(item, {click: () => createWithAlignment(item)})));
     Object.keys(scenario.markers || {}).forEach(name => scenarioContainer.appendChild(createMarker(name, scenario.markers[name])));
     seedMonsterTypes(scenario.monsters);
+}
+
+function createMapSlot(slotNumber) {
+    const div = document.createElement('div');
+    div.id = `mapSlot${slotNumber}`;
+    addClasses(div, ['map', 'dynamic']);
+    return div;
 }
 
 function clearSelection() {
@@ -25,7 +49,7 @@ function clearSelection() {
 }
 
 function clearIdleSelection() {
-    if(Date.now() - selectTime > 5000) {
+    if (Date.now() - selectTime > 5000) {
         clearSelection();
     }
 }
@@ -77,6 +101,20 @@ function remove(id) {
     });
 }
 
+function setRoomCard(roomCardName, slotNumber) {
+    sendEvent({
+        type: 'setRoomCard',
+        meta: {roomCardName, slotNumber}
+    })
+}
+
+function setMonsterCard(monsterCardName, slotNumber) {
+    sendEvent({
+        type: 'setMonsterCard',
+        meta: {monsterCardName, slotNumber}
+    })
+}
+
 function shouldBeRemoved(x, y) {
     return withinTrashCan(x, y);
 }
@@ -95,18 +133,34 @@ function addClasses(element, classes) {
     classes.forEach(cls => element.classList.add(cls));
 }
 
-function classWithAlignment(name) {
-    return `${name}${scenario.alignment === 'horz' ? 'Horz' : ''}`;
+function classWithAlignment(name, slotNumber) {
+    return `${name}${alignment(slotNumber) === 'horz' ? 'Horz' : ''}`;
 }
 
-function seedMonsterTypes(monsterTypes) {
-    const monsterSelector = document.querySelector('#monster_type');
-    monsterTypes.forEach(monsterType => {
+function seedSelectorOptions(selector, options, addEmptyOption) {
+    const selectorElement = document.querySelector(selector);
+    if (addEmptyOption) {
+        selectorElement.appendChild(document.createElement('option'));
+    }
+
+    options.forEach(option => {
         const opt = document.createElement('option');
-        opt.value = monsterType;
-        opt.innerHTML = monsterType.replace(/\b\w/g, l => l.toUpperCase());
-        monsterSelector.appendChild(opt);
+        opt.value = option;
+        opt.innerHTML = option.replace(/\b\w/g, l => l.toUpperCase());
+        selectorElement.appendChild(opt);
     });
+}
+
+function seedMonsterTypes(monsterTypes, selector = '#monsterType') {
+    seedSelectorOptions(selector, monsterTypes);
+}
+
+function seedRoomCards(slotNumber, roomCards) {
+    seedSelectorOptions(`#roomCard${slotNumber}`, roomCards, true);
+}
+
+function seedMonsterCards(slotNumber, monsterCards) {
+    seedSelectorOptions(`#monsterCard${slotNumber}`, monsterCards, true);
 }
 
 function createTrashCan() {
@@ -140,29 +194,16 @@ function createIndicator() {
     create('', 'indicator', 'item', 'waiting-area');
 }
 
-function createScenarioItem(name, {style, click, extraClasses = []}) {
+function createScenarioItem(name, {style, click, extraClasses = [], slotNumber}) {
     const item = document.createElement('div');
-    addClasses(item, [classWithAlignment(name), 'item', ...extraClasses.map(classWithAlignment)]);
+    addClasses(item, [classWithAlignment(name, slotNumber), 'item', ...extraClasses.map(clz => classWithAlignment(clz, slotNumber))]);
     setStyle(item, style);
     click && (item.onclick = click);
     return item;
 }
 
-function createWithAlignment(name) {
-    create('', classWithAlignment(name));
-}
-
-function toArray(classList) {
-    const iter = classList.entries();
-    const array = [];
-    while (true) {
-        const {value, done} = iter.next();
-        if (done) {
-            break;
-        }
-        array.push(value[1]);
-    }
-    return array;
+function createWithAlignment(name, slotNumber) {
+    create('', classWithAlignment(name, slotNumber));
 }
 
 function coin() {
@@ -205,13 +246,21 @@ function obstacle(size) {
     createWithAlignment(`obstacle${size}`);
 }
 
-function monster() {
-    const isElite = document.querySelector("#elite").checked;
-    const standee = parseInt(document.querySelector("#standee").value) || 0;
-    const type = document.querySelector("#monster_type").value.toLowerCase();
-    const classes = monsterClasses(scenario, type, isElite);
+function monster(slotNumber = '') {
+    const isElite = document.querySelector(`#elite${slotNumber}`).checked;
+    const standee = parseInt(document.querySelector(`#standee${slotNumber}`).value) || 0;
+    const type = document.querySelector(`#monsterType${slotNumber}`).value.toLowerCase();
+    const classes = monsterClasses(alignment(slotNumber), type, isElite);
     create(standee, ...classes);
-    document.querySelector("#standee").value = standee + 1;
+    document.querySelector(`#standee${slotNumber}`).value = standee + 1;
+}
+
+function alignment(slotNumber) {
+    if (!slotNumber) {
+        return scenario.alignment;
+    }
+    const roomCard = selectedRoomCards[slotNumber]
+    return roomCard ? roomCard.alignment : 'vert';
 }
 
 function character() {
@@ -224,10 +273,20 @@ function summon() {
     create(type, 'summon');
 }
 
+function roomCard(slotNumber) {
+    const roomCardName = document.querySelector(`#roomCard${slotNumber}`).value;
+    setRoomCard(roomCardName, slotNumber);
+}
+
+function monsterCard(slotNumber) {
+    const monsterCardName = document.querySelector(`#monsterCard${slotNumber}`).value;
+    setMonsterCard(monsterCardName, slotNumber);
+}
+
 function reset() {
     removeAll('.scenario-container');
     removeAll('.scenario-items');
-    removeAll('#monster_type');
+    removeAll('#monsterType');
     setScenario();
 }
 
@@ -355,6 +414,60 @@ function onRemove(id) {
     document.querySelector('.scenario-container').removeChild(item);
 }
 
+function onSetRoomCard({roomCardName, slotNumber}) {
+    const roomCard = roomCards.get(roomCardName);
+    selectedRoomCards[slotNumber] = roomCard;
+    document.querySelector(`#roomCard${slotNumber}`).value = roomCardName;
+
+    removeAll(`#mapSlot${slotNumber}`);
+    const slot = document.querySelector(`#mapSlot${slotNumber}`);
+
+    if (roomCard) {
+        const img = document.createElement('img');
+        img.src = `./scenBook/scenTiles/${roomCard.map.name}.png`;
+        addClasses(img, roomCard.map.classes);
+        setStyle(img, roomCard.map.style);
+        slot.appendChild(img);
+
+        roomCard.doors.forEach(door => slot.appendChild(createScenarioItem(roomCard.doorType, {
+            style: door,
+            extraClasses: ['door'],
+            slotNumber
+        })));
+        roomCard.start.forEach(start => slot.appendChild(createScenarioItem('start', {style: start, slotNumber})));
+    }
+
+    const monsterCard = selectedMonsterCards[slotNumber];
+    if (monsterCard) {
+        onSetMonsterCard({monsterCardName: monsterCard.id, slotNumber});
+    }
+}
+
+function onSetMonsterCard({monsterCardName, slotNumber}) {
+    const monsterCard = monsterCards.get(monsterCardName);
+    selectedMonsterCards[slotNumber] = monsterCard;
+    document.querySelector(`#monsterCard${slotNumber}`).value = monsterCardName;
+
+    removeAll(`#monsterType${slotNumber}`);
+    if (monsterCard) {
+        seedMonsterTypes(monsterCard.monsters, `#monsterType${slotNumber}`);
+    }
+
+    removeAll(`#monsterCardItems${slotNumber}`);
+    const itemsContainer = document.querySelector(`#monsterCardItems${slotNumber}`);
+    const items = [
+        'coin',
+        'treasure',
+        'obstacle1',
+        'trap',
+        ...monsterCard ? monsterCard.items : [],
+    ]
+    items.forEach(item => itemsContainer.appendChild(createScenarioItem(item, {
+        click: () => createWithAlignment(item, slotNumber),
+        slotNumber
+    })));
+}
+
 function onCursor(event) {
     const id = event.id;
     let item = document.getElementById(id);
@@ -402,6 +515,12 @@ function onEvent(event) {
             return;
         case 'forceRefresh':
             loadFromServer();
+            return;
+        case 'setRoomCard':
+            onSetRoomCard(event.meta);
+            return;
+        case 'setMonsterCard':
+            onSetMonsterCard(event.meta);
             return;
         case 'stateCorrection':
             // the sole purpose for this event is to make sure the lastEventUuid is correct even if history has
@@ -474,15 +593,14 @@ window.addEventListener('mousemove', e => {
     }
 
     bufferedMouseMove = setTimeout(() => {
-            bufferedMouseMove = 0;
-            if (ws && ws.readyState === 1) {
-                try {
-                    ws.send(JSON.stringify({type: 'cursor', x: mouseX, y: mouseY}));
-                } catch (e) {
-                    console.warn('Unable to send cursor', e);
-                }
-
+        bufferedMouseMove = 0;
+        if (ws && ws.readyState === 1) {
+            try {
+                ws.send(JSON.stringify({type: 'cursor', x: mouseX, y: mouseY}));
+            } catch (e) {
+                console.warn('Unable to send cursor', e);
             }
+        }
     }, 50);
 });
 

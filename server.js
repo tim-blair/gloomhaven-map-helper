@@ -47,6 +47,7 @@ const dir = __dirname;
 const staticFiles = [
     'index.html',
     'common.css',
+    'randomDungeonDeck.js',
     'scenarios.js',
     'monsters.js',
     'monster.css',
@@ -169,6 +170,8 @@ app.listen(port, () => console.log(`Now running at http://localhost:${port}`));
 function compactedHistory(scenId) {
     const events = (state[scenId] && state[scenId].events) || [];
     const trimmed = new Map();
+    const trimmedRoomCards = new Map();
+    const trimmedMonsterCards = new Map();
     for (let evt of events) {
         switch (evt.type) {
             case 'create':
@@ -181,6 +184,12 @@ function compactedHistory(scenId) {
             case 'remove':
                 trimmed.delete(evt.id);
                 break;
+            case 'setRoomCard':
+                trimmedRoomCards.set(evt.meta.slotNumber, evt);
+                break;
+            case 'setMonsterCard':
+                trimmedMonsterCards.set(evt.meta.slotNumber, evt);
+                break;
         }
     }
     const compactedHistory = [];
@@ -190,6 +199,8 @@ function compactedHistory(scenId) {
             compactedHistory.push(value.move);
         }
     });
+    trimmedRoomCards.forEach(value => compactedHistory.push(value));
+    trimmedMonsterCards.forEach(value => compactedHistory.push(value));
     return compactedHistory;
 }
 

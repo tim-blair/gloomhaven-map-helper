@@ -4,6 +4,7 @@
         <link href='./monster.css' rel='stylesheet'>
         <link href='./common.css' rel='stylesheet'>
         <script src="./monsters.js" type="text/javascript"></script>
+        <script src="./randomDungeonDeck.js" type="text/javascript"></script>
         <script src="./scenarios.js" type="text/javascript"></script>
         <script>
             const url = new URL(window.location.href);
@@ -55,15 +56,73 @@
             <div class="configBox monster-box">
                 <input type="checkbox" value="Elite" id="elite" />
                 <label for="elite">Elite</label>
-                <select id="monster_type"></select>
+                <select id="monsterType"></select>
                 <label for="standee">Standee:</label>
                 <input type="number" id="standee" name="standee" min="1" max="10" value="1">
                 <input type="button" value="Monster" onclick="monster()" />
             </div>
             <div class="scenario-items"></div>
         </div>
+        <div id="dynamicItems1" class="dynamic-available-item-container">
+            <div class="configBox">
+                <select id="roomCard1"></select>
+                <input type="button" value="Room Card" onclick="roomCard(1)" />
+            </div>
+            <div class="configBox" style="margin-left: 10px">
+                <select id="monsterCard1" ></select>
+                <input type="button" value="Monster Card" onclick="monsterCard(1)" />
+            </div>
+            <div class="configBox monster-box" style="margin-left: 50px">
+                <input type="checkbox" value="Elite" id="elite1" />
+                <label for="elite">Elite</label>
+                <select id="monsterType1"></select>
+                <label for="standee">Standee:</label>
+                <input type="number" id="standee1" name="standee" min="1" max="10" value="1">
+                <input type="button" value="Monster" onclick="monster(1)" />
+            </div>
+            <div id="monsterCardItems1" class="scenario-items"></div>
+        </div>
+        <div id="dynamicItems2" class="dynamic-available-item-container">
+            <div class="configBox">
+                <select id="roomCard2"></select>
+                <input type="button" value="Room Card" onclick="roomCard(2)" />
+            </div>
+            <div class="configBox" style="margin-left: 10px">
+                <select id="monsterCard2" ></select>
+                <input type="button" value="Monster Card" onclick="monsterCard(2)" />
+            </div>
+            <div class="configBox monster-box" style="margin-left: 50px">
+                <input type="checkbox" value="Elite" id="elite2" />
+                <label for="elite">Elite</label>
+                <select id="monsterType2"></select>
+                <label for="standee">Standee:</label>
+                <input type="number" id="standee2" name="standee" min="1" max="10" value="1">
+                <input type="button" value="Monster" onclick="monster(2)" />
+            </div>
+            <div id="monsterCardItems2" class="scenario-items"></div>
+        </div>
+        <div id="dynamicItems3" class="dynamic-available-item-container">
+            <div class="configBox">
+                <select id="roomCard3"></select>
+                <input type="button" value="Room Card" onclick="roomCard(3)" />
+            </div>
+            <div class="configBox" style="margin-left: 10px">
+                <select id="monsterCard3" ></select>
+                <input type="button" value="Monster Card" onclick="monsterCard(3)" />
+            </div>
+            <div class="configBox monster-box" style="margin-left: 50px">
+                <input type="checkbox" value="Elite" id="elite3" />
+                <label for="elite">Elite</label>
+                <select id="monsterType3"></select>
+                <label for="standee">Standee:</label>
+                <input type="number" id="standee3" name="standee" min="1" max="10" value="1">
+                <input type="button" value="Monster" onclick="monster(3)" />
+            </div>
+            <div id="monsterCardItems3" class="scenario-items"></div>
+        </div>
     </div>
     <div class="scenario-container"></div>
+    <div class="dynamic-scenario-container"></div>
     <script>
         setInterval(clearIdleSelection, 1000);
     </script>

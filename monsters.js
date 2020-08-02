@@ -50,10 +50,10 @@ monsters.set('winged horror', 'WingedHorror');
 monsters.set('gloom', 'Gloom');
 
 
-function monsterClasses(scenario, monster, elite) {
+function monsterClasses(alignment, monster, elite) {
     return [
         'monster',
-        monsters.has(monster) ? `${scenario.alignment}${monsters.get(monster)}` : 'missing-monster',
+        monsters.has(monster) ? `${alignment}${monsters.get(monster)}` : 'missing-monster',
         ...(elite ? ['elite'] : []),
     ];
 }
